@@ -11,3 +11,9 @@ class Settings(BaseSettings):
     azure_document_intelligence_key: str = Field(
         validation_alias="AZURE_DOCUMENT_INTELLIGENCE_KEY",
     )
+    azure_openai_endpoint: str = Field(
+        validation_alias="AZURE_OPENAI_ENDPOINT",
+    )
+    azure_openai_api_key: str = Field(
+        validation_alias="AZURE_OPENAI_API_KEY",
+    )

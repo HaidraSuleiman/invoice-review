@@ -122,3 +122,38 @@ uv run --locked --no-sync python -m scripts.map_schema_samples 01-en-happy-class
 - [ ] `uv run --locked --no-sync ruff check app scripts` passes.
 - [ ] `map_schema_samples.py` exits 0 on the default trio of samples.
 - [ ] Invoice line items are populated for `01-en-happy-classic.pdf`.
+
+## Azure OpenAI spike
+
+### Outcome
+
+The backend reads `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY` from `backend/.env`, calls the hardcoded `gpt-5-mini` deployment through the Responses API, and prints the model reply.
+
+### Why
+
+This confirms Foundry/OpenAI wiring and the provider boundary before document review and GL suggestion. SDK types stay in `app/providers/azure_openai.py`; settings stay in `app/config.py`.
+
+### Commands
+
+```bash
+cd backend
+uv run --locked --no-sync ruff check app
+uv run --locked --no-sync python -m app.services.openai_service
+```
+
+Optional custom prompt:
+
+```bash
+uv run --locked --no-sync python -m app.services.openai_service "Name one EU VAT checksum rule in one sentence."
+```
+
+### Observable result
+
+- Terminal shows `deployment: gpt-5-mini`, the prompt, and a short natural-language answer.
+- Token usage is billed against the Azure OpenAI deployment.
+
+### Checkpoint
+
+- [ ] `uv run --locked --no-sync ruff check app` passes.
+- [ ] The command above completes without HTTP 401/403.
+- [ ] The default prompt answer mentions Paris.
