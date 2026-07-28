@@ -157,3 +157,34 @@ uv run --locked --no-sync python -m app.services.openai_service "Name one EU VAT
 - [ ] `uv run --locked --no-sync ruff check app` passes.
 - [ ] The command above completes without HTTP 401/403.
 - [ ] The default prompt answer mentions Paris.
+
+## Document classification (Pydantic AI)
+
+### Outcome
+
+`app/pipeline/classification.py` sends a PDF or image to Azure OpenAI through Pydantic AI structured output and returns `document_type` (`invoice` or `receipt`) plus a confidence score. This runs before choosing `prebuilt-invoice` or `prebuilt-receipt`.
+
+### Why
+
+Document Intelligence requires the model id up front. A small LLM classification step picks the correct extraction pipeline for unknown uploads. Uses `pydantic-ai-slim[openai]==2.19.0` (exclude-newer exception in `pyproject.toml` because that release is outside the default 7-day window).
+
+### Commands
+
+```bash
+cd backend
+uv sync --locked
+uv run --locked --no-sync ruff check app
+uv run --locked --no-sync python -m app.services.classification_service
+uv run --locked --no-sync python -m app.services.classification_service ../samples/generated/13-nl-fuel-receipt.png
+```
+
+### Observable result
+
+- Terminal prints `deployment: gpt-5-mini`, the filename, and JSON with `document_type` and `confidence`.
+- The classic invoice sample classifies as `invoice`; the fuel receipt as `receipt`.
+
+### Checkpoint
+
+- [ ] `uv run --locked --no-sync ruff check app` passes.
+- [ ] Both commands above complete without HTTP 401/403.
+- [ ] Types match the expected document for each sample.

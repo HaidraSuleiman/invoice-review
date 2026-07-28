@@ -4,19 +4,15 @@ from openai.types.responses import Response
 from app.config import Settings
 
 DEPLOYMENT_NAME = "gpt-5-mini"
-OPENAI_V1_PATH = "/openai/v1"
 
 
-def openai_base_url(endpoint: str) -> str:
-    base = endpoint.strip().rstrip("/")
-    if not base.endswith(OPENAI_V1_PATH):
-        base = f"{base}{OPENAI_V1_PATH}"
-    return base
+def azure_openai_base_url(settings: Settings) -> str:
+    return settings.azure_openai_endpoint.rstrip("/")
 
 
 def create_openai_client(settings: Settings) -> OpenAI:
     return OpenAI(
-        base_url=openai_base_url(settings.azure_openai_endpoint),
+        base_url=azure_openai_base_url(settings),
         api_key=settings.azure_openai_api_key,
     )
 
