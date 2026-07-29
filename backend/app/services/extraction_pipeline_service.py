@@ -11,7 +11,7 @@ from app.pipeline.run import run_document_pipeline
 from app.providers.azure_openai import DEPLOYMENT_NAME
 
 DEFAULT_SAMPLE = (
-    Path(__file__).resolve().parents[3] / "samples" / "generated" / "01-en-happy-classic.pdf"
+    Path(__file__).resolve().parents[3] / "samples" / "generated" / "05-nl-missing-vendor-vat.pdf"
 )
 
 
@@ -30,6 +30,7 @@ def main() -> None:
                 "line_item_count": result.line_item_count,
                 "extraction": result.extraction.model_dump(mode="json"),
                 "validation": result.validation.model_dump(mode="json"),
+                "gl_suggestion": result.gl_suggestion.model_dump(mode="json"),
             },
             indent=2,
         )

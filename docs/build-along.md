@@ -218,3 +218,33 @@ uv run --locked --no-sync python -m app.services.extraction_pipeline_service ../
 - [ ] `uv run --locked --no-sync ruff check app` passes.
 - [ ] Both commands above complete without HTTP 401/403.
 - [ ] Invoice sample shows populated line items and valid EU VAT checks where manifest expects them.
+
+## GL account suggestion
+
+### Outcome
+
+After validation, `suggest_gl_step` calls `app/accounting/gl_suggestion.py`, which sends **normalized extraction JSON plus the fixed ten-account Northstar catalog** to Azure OpenAI with Pydantic AI structured output. Catalog codes and post-model validation live in `app/accounting/catalog.py` and `app/accounting/validation.py`. The playground JSON now includes `gl_suggestion` (code, name, confidence, rationale).
+
+### Why
+
+Maya needs a suggested GL account before approval, but the model must not define policy—only pick from the catalog. Running this as the final pipeline step keeps document-type gating (`invoice` or `receipt` only) and reuses the same `.then()` pattern.
+
+### Commands
+
+```bash
+cd backend
+uv run --locked --no-sync ruff check app
+uv run --locked --no-sync python -m app.services.extraction_pipeline_service
+uv run --locked --no-sync python -m app.services.extraction_pipeline_service ../samples/generated/13-nl-fuel-receipt.png
+```
+
+### Observable result
+
+- JSON includes `gl_suggestion.account_code` between `6100` and `7000`, plus `account_name`, `confidence`, and `rationale`.
+- Fuel receipt samples often suggest `6700` (Fuel and travel); cleaning invoices often land in `6100`–`6400`.
+
+### Checkpoint
+
+- [ ] `uv run --locked --no-sync ruff check app` passes.
+- [ ] Pipeline commands complete without HTTP 401/403.
+- [ ] `gl_suggestion` appears for both invoice and receipt samples.

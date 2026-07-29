@@ -1,4 +1,4 @@
-"""End-to-end classify → extract → normalize → validate pipeline."""
+"""End-to-end classify → extract → normalize → validate → GL suggestion pipeline."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from app.pipeline.steps import (
     classify_step,
     document_intelligence_step,
     normalize_extraction_step,
+    suggest_gl_step,
     validate_extraction_step,
 )
 
@@ -23,6 +24,7 @@ def run_document_pipeline(settings: Settings, document_path: Path) -> DocumentPi
         .then(document_intelligence_step)
         .then(normalize_extraction_step)
         .then(validate_extraction_step)
+        .then(suggest_gl_step)
         .run(DocumentPipelineState())
     )
     return _to_result(final)
@@ -34,6 +36,7 @@ def _to_result(state: DocumentPipelineState) -> DocumentPipelineResult:
         or state.snapshot is None
         or state.extraction is None
         or state.validation is None
+        or state.gl_suggestion is None
     ):
         raise ValueError("pipeline finished with incomplete state")
 
@@ -42,5 +45,6 @@ def _to_result(state: DocumentPipelineState) -> DocumentPipelineResult:
         snapshot=state.snapshot,
         extraction=state.extraction,
         validation=state.validation,
+        gl_suggestion=state.gl_suggestion,
         line_item_count=len(state.extraction.line_items),
     )

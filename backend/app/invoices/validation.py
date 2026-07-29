@@ -20,6 +20,7 @@ VatField = Literal["vendor_vat_id", "customer_vat_id"]
 
 class VatFormatCheck(BaseModel):
     field: VatField
+    present: bool = False
     raw_value: str | None = None
     compact_value: str | None = None
     valid: bool | None = None
@@ -44,7 +45,7 @@ class ExtractionValidation(BaseModel):
 
 def validate_eu_vat_format(field: VatField, raw_value: str | None) -> VatFormatCheck:
     if raw_value is None or not raw_value.strip():
-        return VatFormatCheck(field=field, raw_value=raw_value, valid=None)
+        return VatFormatCheck(field=field, present=False, raw_value=raw_value, valid=None)
 
     trimmed = raw_value.strip()
     try:
@@ -52,6 +53,7 @@ def validate_eu_vat_format(field: VatField, raw_value: str | None) -> VatFormatC
         validated = eu_vat.validate(trimmed)
         return VatFormatCheck(
             field=field,
+            present=True,
             raw_value=trimmed,
             compact_value=validated or compact,
             valid=True,
@@ -59,6 +61,7 @@ def validate_eu_vat_format(field: VatField, raw_value: str | None) -> VatFormatC
     except ValidationError as exc:
         return VatFormatCheck(
             field=field,
+            present=True,
             raw_value=trimmed,
             valid=False,
             message=str(exc),
@@ -134,8 +137,11 @@ def validate_financial_extraction(extraction: FinancialExtraction) -> Extraction
 def _collect_vat_issues(checks: list[VatFormatCheck]) -> list[str]:
     issues: list[str] = []
     for check in checks:
+        label = check.field.replace("_", " ")
+        if not check.present:
+            issues.append(f"{label}: missing")
+            continue
         if check.valid is False:
-            label = check.field.replace("_", " ")
             detail = check.message or "invalid EU VAT format"
             issues.append(f"{label}: {detail}")
     return issues

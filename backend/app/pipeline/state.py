@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.accounting.gl_suggestion import GlSuggestion
 from app.invoices.validation import ExtractionValidation
 from app.pipeline.classification import DocumentClassification
 from app.schemas.common.snapshot import DocumentIntelligenceSnapshot
@@ -18,6 +19,7 @@ class DocumentPipelineState(BaseModel):
     snapshot: DocumentIntelligenceSnapshot | None = None
     extraction: FinancialExtraction | None = None
     validation: ExtractionValidation | None = None
+    gl_suggestion: GlSuggestion | None = None
 
 
 class DocumentPipelineResult(BaseModel):
@@ -27,4 +29,5 @@ class DocumentPipelineResult(BaseModel):
     snapshot: DocumentIntelligenceSnapshot
     extraction: FinancialExtraction
     validation: ExtractionValidation
+    gl_suggestion: GlSuggestion
     line_item_count: int = Field(ge=0)
