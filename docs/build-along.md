@@ -188,3 +188,33 @@ uv run --locked --no-sync python -m app.services.classification_service ../sampl
 - [ ] `uv run --locked --no-sync ruff check app` passes.
 - [ ] Both commands above complete without HTTP 401/403.
 - [ ] Types match the expected document for each sample.
+
+## Extraction pipeline chain
+
+### Outcome
+
+`app/pipeline/chain.py` defines a small `Pipeline.start(ctx).then(step).run(state)` pattern. Steps under `app/pipeline/steps/` classify the upload, call `prebuilt-invoice` or `prebuilt-receipt`, map into the Pydantic extraction models, and run offline EU VAT format checks plus subtotal/VAT/total reconciliation in pure `app/invoices/validation.py`.
+
+### Why
+
+Document Intelligence needs the model id before analyze, but downstream review wants one orchestrated path. Chaining keeps each step testable in isolation while `run_document_pipeline` wires the full story for services and the future upload flow.
+
+### Commands
+
+```bash
+cd backend
+uv run --locked --no-sync ruff check app
+uv run --locked --no-sync python -m app.services.extraction_pipeline_service
+uv run --locked --no-sync python -m app.services.extraction_pipeline_service ../samples/generated/13-nl-fuel-receipt.png
+```
+
+### Observable result
+
+- Terminal prints classification, `model_id`, mapped extraction JSON (supplier/customer, VAT IDs, dates, PO, currency, totals, line items), and validation with VAT checksum results and totals reconciliation.
+- The classic invoice sample uses `prebuilt-invoice` and reports reconciled totals; the fuel receipt uses `prebuilt-receipt`.
+
+### Checkpoint
+
+- [ ] `uv run --locked --no-sync ruff check app` passes.
+- [ ] Both commands above complete without HTTP 401/403.
+- [ ] Invoice sample shows populated line items and valid EU VAT checks where manifest expects them.
