@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo } from "react"
 
 type FilePreviewProps = {
   file: File
@@ -20,19 +20,13 @@ function isPdfFile(file: File): boolean {
 }
 
 export function FilePreview({ file }: FilePreviewProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewUrl = useMemo(() => URL.createObjectURL(file), [file])
 
   useEffect(() => {
-    const url = URL.createObjectURL(file)
-    setPreviewUrl(url)
     return () => {
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(previewUrl)
     }
-  }, [file])
-
-  if (!previewUrl) {
-    return null
-  }
+  }, [previewUrl])
 
   if (isImageFile(file)) {
     return (

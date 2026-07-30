@@ -329,6 +329,7 @@ uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
 
 - `http://localhost:5173` shows **Document Review** with **Select a document**.
 - Choosing a sample under `samples/generated/` and clicking **Start pipeline** shows a processing state, then classification, totals validation, and GL suggestion.
+- On the result screen, Maya sees a document-style summary (party + total hero, grouped fact rows, GL strip) and can edit headline fields and the GL account, then **Accept review** or discard.
 - API failures (backend down, 400) surface as an error on the select screen.
 
 ### Checkpoint
@@ -336,3 +337,135 @@ uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
 - [ ] Frontend type-check, lint, and production build pass.
 - [ ] Welcome → select → process works against a running backend.
 - [ ] Result screen shows `gl_suggestion` for a happy-path sample.
+
+## Result screen visual polish
+
+### Outcome
+
+The pipeline result view no longer packs every extracted field into a dense two-column card grid. It uses a document-review layout: validation status, a party/total summary, grouped fact rows, a soft GL suggestion strip, then the editable human-review form.
+
+### Why
+
+The card grid made the last step feel like a dashboard of tiles instead of a finance review. Grouped rows and a clear total hierarchy match how Maya scans an invoice.
+
+### Commands
+
+```bash
+cd frontend
+pnpm exec tsc -b --pretty false
+pnpm lint
+pnpm build
+```
+
+### Observable result
+
+- Result screen opens with vendor/merchant and total as the primary signals.
+- Related fields appear as labeled rows under Parties / Document / Amounts.
+- Suggested GL sits in a teal soft strip with rationale.
+- Accept and discard still work as before.
+
+### Checkpoint
+
+- [ ] Frontend type-check, lint, and production build pass.
+- [ ] Manual walkthrough: process a sample and confirm the result layout reads clearly.
+
+## Block accept on empty required fields
+
+### Outcome
+
+Human review disables **Accept review** while any Northstar policy-required draft field is blank (invoice: vendor/customer names and VAT IDs, invoice number/date, currency, total; receipt: merchant, transaction date, currency, VAT/tax, total). Due date and purchase order stay optional. Empty required inputs are marked; a status line lists what still needs filling.
+
+### Why
+
+Extraction often leaves VAT IDs or other required values empty. Maya must complete them before the document can be treated as accepted.
+
+### Commands
+
+```bash
+cd frontend
+pnpm exec tsc -b --pretty false
+pnpm lint
+pnpm build
+```
+
+### Observable result
+
+- Process a sample with a missing customer VAT: Accept stays disabled until that field (and any other required blanks) are filled.
+- Filling the blanks re-enables Accept; discard still works while disabled.
+
+### Checkpoint
+
+- [ ] Frontend type-check, lint, and production build pass.
+- [ ] Manual check: incomplete draft cannot be accepted.
+
+## Review draft date and amount formats
+
+### Outcome
+
+Human-review date fields use `<input type="date">` and store ISO `YYYY-MM-DD` values that match backend `datetime.date`. Currency is forced to a 3-letter code; money fields must be Decimal-like numbers. Accept stays disabled while formats are invalid (including due date before invoice date).
+
+### Why
+
+Pipeline JSON already serializes Python `date` and `Decimal`. Free-text date strings would not round-trip cleanly into SQLite later; the review step must keep the same shapes.
+
+### Commands
+
+```bash
+cd frontend
+pnpm exec tsc -b --pretty false
+pnpm lint
+pnpm build
+```
+
+### Observable result
+
+- Invoice/receipt/due date pickers only accept calendar dates.
+- Typing `EU` for currency or `12,5` for total keeps Accept disabled with a format message.
+- Valid ISO dates and decimal amounts allow Accept when required fields are complete.
+
+### Checkpoint
+
+- [ ] Frontend type-check, lint, and production build pass.
+- [ ] Manual check: date pickers and amount/currency format rules behave as above.
+
+## SQLite review history
+
+### Outcome
+
+Accept and Reject persist Maya's edited draft to a local SQLite database (`backend/data/reviews.db`) with status `accepted` or `rejected`. `POST /documents/process` now returns `original_filename`, `stored_filename`, and nested `result`. The UI has a History screen with list + delete (delete also removes the uploaded file).
+
+### Why
+
+Decisions must survive app restarts for demos and teaching. SQLite matches the brief and keeps routes → service → repository boundaries. Explicit delete lets the same sample invoice be processed again.
+
+### Commands
+
+```bash
+cd backend
+uv run --locked --no-sync ruff check app scripts
+
+cd ../frontend
+pnpm exec tsc -b --pretty false
+pnpm lint
+pnpm build
+```
+
+Backend (separate terminal):
+
+```bash
+cd backend
+uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
+```
+
+### Observable result
+
+- Welcome shows **View history**.
+- After processing, **Accept review** / **Reject** write a row; confirmation offers history.
+- History lists status, party, total, and decided time; **Delete** removes the row and upload file.
+- Closing and reopening the app still shows saved decisions.
+
+### Checkpoint
+
+- [ ] Backend ruff passes.
+- [ ] Frontend type-check, lint, and production build pass.
+- [ ] Manual walkthrough: accept one sample, reject one, refresh history, delete one.

@@ -1,5 +1,10 @@
 import { env } from "./env"
-import type { DocumentPipelineResult } from "./types"
+import type {
+  ProcessDocumentResponse,
+  ReviewCreatePayload,
+  ReviewRecord,
+  ReviewSummary,
+} from "./types"
 
 export class ApiError extends Error {
   readonly status: number
@@ -24,17 +29,10 @@ function detailFromBody(body: unknown): string | null {
   return null
 }
 
-/** POST multipart file to the process-only FastAPI endpoint. */
-export async function processDocument(file: File): Promise<DocumentPipelineResult> {
-  const form = new FormData()
-  form.append("file", file)
-
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`${env.apiBaseUrl}/documents/process`, {
-      method: "POST",
-      body: form,
-    })
+    response = await fetch(`${env.apiBaseUrl}${path}`, init)
   } catch {
     throw new ApiError(
       0,
@@ -53,5 +51,35 @@ export async function processDocument(file: File): Promise<DocumentPipelineResul
     throw new ApiError(response.status, detail)
   }
 
-  return (await response.json()) as DocumentPipelineResult
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  return (await response.json()) as T
+}
+
+/** POST multipart file to the process FastAPI endpoint. */
+export async function processDocument(file: File): Promise<ProcessDocumentResponse> {
+  const form = new FormData()
+  form.append("file", file)
+  return requestJson<ProcessDocumentResponse>("/documents/process", {
+    method: "POST",
+    body: form,
+  })
+}
+
+export async function createReview(payload: ReviewCreatePayload): Promise<ReviewRecord> {
+  return requestJson<ReviewRecord>("/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function listReviews(): Promise<ReviewSummary[]> {
+  return requestJson<ReviewSummary[]>("/reviews")
+}
+
+export async function deleteReview(reviewId: string): Promise<void> {
+  await requestJson<undefined>(`/reviews/${reviewId}`, { method: "DELETE" })
 }

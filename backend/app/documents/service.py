@@ -11,8 +11,8 @@ from app.config import (
     UPLOAD_DIR,
     Settings,
 )
+from app.documents.schemas import ProcessDocumentResponse
 from app.pipeline.run import run_document_pipeline
-from app.pipeline.state import DocumentPipelineResult
 
 
 class UploadValidationError(ValueError):
@@ -24,14 +24,15 @@ def process_document(
     *,
     filename: str,
     content: bytes,
-) -> DocumentPipelineResult:
-    """Validate bytes, store under a UUID path, then run the extraction pipeline.
-
-    Persistence can later record the stored path after this returns; this slice
-    leaves the file on disk and returns only the pipeline result.
-    """
+) -> ProcessDocumentResponse:
+    """Validate bytes, store under a UUID path, then run the extraction pipeline."""
     stored_path = _store_upload(filename=filename, content=content)
-    return run_document_pipeline(settings, stored_path)
+    pipeline_result = run_document_pipeline(settings, stored_path)
+    return ProcessDocumentResponse(
+        original_filename=Path(filename).name or "upload",
+        stored_filename=stored_path.name,
+        result=pipeline_result,
+    )
 
 
 def _store_upload(*, filename: str, content: bytes) -> Path:

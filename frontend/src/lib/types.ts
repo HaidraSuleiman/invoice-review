@@ -31,10 +31,13 @@ export type InvoiceExtraction = {
   customer_vat_id: string | null
   customer_address: string | null
   invoice_number: string | null
+  /** ISO `YYYY-MM-DD` from backend `datetime.date`. */
   invoice_date: string | null
+  /** ISO `YYYY-MM-DD` from backend `datetime.date`. */
   due_date: string | null
   purchase_order: string | null
   currency: string | null
+  /** Decimal amount serialized as a JSON string. */
   subtotal: string | null
   total_tax: string | null
   invoice_total: string | null
@@ -56,9 +59,11 @@ export type ReceiptExtraction = {
   merchant_address: string | null
   country_region: string | null
   receipt_type: string | null
+  /** ISO `YYYY-MM-DD` from backend `datetime.date`. */
   transaction_date: string | null
   transaction_time: string | null
   currency: string | null
+  /** Decimal amount serialized as a JSON string. */
   subtotal: string | null
   total_tax: string | null
   total: string | null
@@ -109,4 +114,61 @@ export type DocumentPipelineResult = {
   validation: ExtractionValidation
   gl_suggestion: GlSuggestion
   line_item_count: number
+}
+
+/** Mirrors backend ProcessDocumentResponse. */
+export type ProcessDocumentResponse = {
+  original_filename: string
+  stored_filename: string
+  result: DocumentPipelineResult
+}
+
+export type ReviewStatus = "accepted" | "rejected"
+
+/** Payload for POST /reviews — dates ISO, amounts as decimal strings/null. */
+export type ReviewCreatePayload = {
+  status: ReviewStatus
+  original_filename: string
+  stored_filename: string
+  document_type: DocumentType
+  party_name: string
+  party_vat_id: string
+  counterparty_name: string
+  counterparty_vat_id: string
+  document_number: string
+  document_date: string | null
+  due_date: string | null
+  purchase_order: string
+  currency: string
+  subtotal: string | null
+  total_tax: string | null
+  total: string | null
+  gl_account_code: string
+  notes: string
+}
+
+export type ReviewSummary = {
+  id: string
+  status: ReviewStatus
+  document_type: DocumentType
+  original_filename: string
+  party_name: string
+  document_number: string | null
+  currency: string | null
+  total: string | null
+  gl_account_code: string | null
+  decided_at: string
+}
+
+export type ReviewRecord = ReviewSummary & {
+  stored_filename: string
+  party_vat_id: string | null
+  counterparty_name: string | null
+  counterparty_vat_id: string | null
+  document_date: string | null
+  due_date: string | null
+  purchase_order: string | null
+  subtotal: string | null
+  total_tax: string | null
+  notes: string | null
 }

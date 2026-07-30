@@ -4,7 +4,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Fixed tutorial policy (not environment-backed).
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+UPLOAD_DIR = DATA_DIR / "uploads"
+DATABASE_PATH = DATA_DIR / "reviews.db"
 MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 ALLOWED_UPLOAD_SUFFIXES = frozenset({".pdf", ".png", ".jpg", ".jpeg"})
 CORS_ORIGINS = ("http://localhost:5173",)
