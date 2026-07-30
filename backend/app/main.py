@@ -6,9 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import CORS_ORIGINS
-from app.invoices.routes import router as documents_router
+from app.documents.routes import router as documents_router
 
-app = FastAPI(title="Invoice Review", version="0.1.0")
+app = FastAPI(title="Document Review", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

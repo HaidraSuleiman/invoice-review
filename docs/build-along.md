@@ -193,7 +193,7 @@ uv run --locked --no-sync python -m app.services.classification_service ../sampl
 
 ### Outcome
 
-`app/pipeline/chain.py` defines a small `Pipeline.start(ctx).then(step).run(state)` pattern. Steps under `app/pipeline/steps/` classify the upload, call `prebuilt-invoice` or `prebuilt-receipt`, map into the Pydantic extraction models, and run offline EU VAT format checks plus subtotal/VAT/total reconciliation in pure `app/invoices/validation.py`.
+`app/pipeline/chain.py` defines a small `Pipeline.start(ctx).then(step).run(state)` pattern. Steps under `app/pipeline/steps/` classify the upload, call `prebuilt-invoice` or `prebuilt-receipt`, map into the Pydantic extraction models, and run offline EU VAT format checks plus subtotal/VAT/total reconciliation in pure `app/documents/validation.py`.
 
 ### Why
 
@@ -253,7 +253,7 @@ uv run --locked --no-sync python -m app.services.extraction_pipeline_service ../
 
 ### Outcome
 
-`app/main.py` exposes `GET /health` and mounts `POST /documents/process`. The upload route validates PDF/PNG/JPEG up to 4 MB, stores the file under `backend/data/uploads/` with a UUID name, runs `run_document_pipeline`, and returns `DocumentPipelineResult` JSON. HTTP lives in `app/invoices/routes.py`; orchestration lives in `app/invoices/service.py`. SQLite persistence is not introduced yet.
+`app/main.py` exposes `GET /health` and mounts `POST /documents/process`. The upload route validates PDF/PNG/JPEG up to 4 MB, stores the file under `backend/data/uploads/` with a UUID name, runs `run_document_pipeline`, and returns `DocumentPipelineResult` JSON. HTTP lives in `app/documents/routes.py`; orchestration lives in `app/documents/service.py`. SQLite persistence is not introduced yet.
 
 ### Why
 
@@ -295,3 +295,44 @@ curl -X POST http://localhost:8000/documents/process -F "file=@../docs/client-br
 - [ ] Health endpoint responds with `{"status":"ok"}`.
 - [ ] Sample PDF upload returns pipeline JSON including `gl_suggestion`.
 - [ ] Non-PDF/PNG/JPEG upload returns HTTP 400.
+
+## Frontend welcome → process scaffold
+
+### Outcome
+
+The React app mounts a welcome screen, file picker (PDF/PNG/JPEG ≤ 4 MB), processing state, and a compact pipeline result view. `src/lib/env.ts` validates `VITE_API_BASE_URL`; `src/lib/api.ts` posts multipart `file` to `POST /documents/process` and types the `DocumentPipelineResult` response.
+
+### Why
+
+The process-only API is ready for the browser. This slice wires the first user story steps without SQLite, approval, or correction email—so Maya can pick a sample and see the live pipeline in the UI.
+
+### Commands
+
+```bash
+cd frontend
+cp .env.example .env
+pnpm install --frozen-lockfile
+pnpm exec tsc -b --pretty false
+pnpm lint
+pnpm build
+pnpm run dev
+```
+
+Backend (separate terminal):
+
+```bash
+cd backend
+uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
+```
+
+### Observable result
+
+- `http://localhost:5173` shows **Document Review** with **Select a document**.
+- Choosing a sample under `samples/generated/` and clicking **Start pipeline** shows a processing state, then classification, totals validation, and GL suggestion.
+- API failures (backend down, 400) surface as an error on the select screen.
+
+### Checkpoint
+
+- [ ] Frontend type-check, lint, and production build pass.
+- [ ] Welcome → select → process works against a running backend.
+- [ ] Result screen shows `gl_suggestion` for a happy-path sample.

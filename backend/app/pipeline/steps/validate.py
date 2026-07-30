@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.invoices.validation import validate_financial_extraction
+from app.documents.validation import validate_financial_extraction
 from app.pipeline.chain import PipelineContext
 from app.pipeline.state import DocumentPipelineState
 

@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.config import Settings
-from app.invoices.service import UploadValidationError, process_document
+from app.documents.service import UploadValidationError, process_document
 from app.pipeline.state import DocumentPipelineResult
 
 router = APIRouter(tags=["documents"])

@@ -18,7 +18,7 @@ Read `docs/client-brief.md`, `docs/architecture.md`, and `docs/build-along.md` b
 - The document reviewer receives the original PDF/PNG/JPEG and returns classification plus provider-independent structured fields. Document Intelligence remains primary; deterministic merging only fills its missing fields and exposes provenance.
 - The GL categorizer receives normalized invoice fields only.
 - The GL catalog and selection validation live in `backend/app/accounting/`; model output never becomes business policy.
-- Business rules live in `backend/app/invoices/validation.py` and must be pure.
+- Business rules live in `backend/app/documents/validation.py` and must be pure.
 - HTTP concerns live in `routes.py`; orchestration lives in `service.py`; SQLite access lives in `repository.py`.
 - Once those modules are introduced, settings are read only through `backend/app/config.py` and `frontend/src/lib/env.ts`.
 - Do not add auth, queues, workers, deployment, batch processing, email ingestion/sending, or accounting integrations.

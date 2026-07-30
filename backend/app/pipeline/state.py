@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from app.accounting.gl_suggestion import GlSuggestion
-from app.invoices.validation import ExtractionValidation
+from app.documents.validation import ExtractionValidation
 from app.pipeline.classification import DocumentClassification
 from app.schemas.common.snapshot import DocumentIntelligenceSnapshot
 from app.schemas.invoice.models import InvoiceExtraction

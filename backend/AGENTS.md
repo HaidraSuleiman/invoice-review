@@ -23,7 +23,7 @@ backend/
 ├── app/
 │   ├── main.py              # FastAPI construction and dependency wiring
 │   ├── config.py            # Provider settings and fixed application config
-│   ├── invoices/            # HTTP, orchestration, persistence, and policy by module
+│   ├── documents/           # HTTP, orchestration, persistence, and policy by module
 │   ├── accounting/          # Fixed GL catalog and validated selections
 │   ├── document_review/     # Provider-independent review and reconciliation
 │   ├── correction_email/    # Eligibility and provider-independent draft models
