@@ -12,6 +12,14 @@ ALLOWED_UPLOAD_SUFFIXES = frozenset({".pdf", ".png", ".jpg", ".jpeg"})
 CORS_ORIGINS = ("http://localhost:5173",)
 
 
+class RuntimePaths(BaseSettings):
+    """Optional deploy paths. Unset locally so the API stays API-only."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    static_dir: Path | None = Field(default=None, validation_alias="STATIC_DIR")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

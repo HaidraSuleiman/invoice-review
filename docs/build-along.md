@@ -469,3 +469,155 @@ uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
 - [ ] Backend ruff passes.
 - [ ] Frontend type-check, lint, and production build pass.
 - [ ] Manual walkthrough: accept one sample, reject one, refresh history, delete one.
+
+## Azure Container Apps single-container deploy
+
+### Outcome
+
+Invoice Review runs as one container on Azure Container Apps: FastAPI serves the built React SPA and the API from the same HTTPS origin. SQLite and uploads persist on an Azure Files share. Document Intelligence and Azure OpenAI stay in the existing resource group; only hosting pieces (ACR, storage, Container Apps) are added.
+
+### Why
+
+A single public URL matches a demo deploy without splitting UI and API hosts. Same-origin removes CORS for production. Empty `VITE_API_BASE_URL` makes the browser call relative API paths. `STATIC_DIR` mounts the Vite `dist` only when set, so local split-stack (`pnpm dev` + uvicorn) stays unchanged.
+
+### Prerequisites
+
+- Azure CLI logged in (`az login`) with access to resource group `rg-invoice-review`
+- Local `backend/.env` with the four Azure provider values
+- Confirm the Azure OpenAI deployment name matches the hardcoded `gpt-5-mini` in `backend/app/providers/azure_openai.py`
+
+### Commands
+
+Discover the resource group and existing AI resources:
+
+```bash
+az account show
+az group list -o table
+az resource list -g rg-invoice-review -o table
+```
+
+Register providers once (if needed):
+
+```bash
+az provider register -n Microsoft.App --wait
+az provider register -n Microsoft.ContainerRegistry --wait
+az provider register -n Microsoft.OperationalInsights --wait
+```
+
+Create ACR, storage share, and Container Apps environment (West Europe):
+
+```bash
+RG=rg-invoice-review
+LOC=westeurope
+ACR=acrinvreview47c63
+STG=stinvreview47c63
+SHARE=invoicedata
+ENV_NAME=cae-invoice-review
+APP=ca-invoice-review
+
+az acr create -g "$RG" -n "$ACR" --sku Basic --location "$LOC"
+az storage account create -g "$RG" -n "$STG" -l "$LOC" --sku Standard_LRS --kind StorageV2
+STORAGE_KEY=$(az storage account keys list -g "$RG" -n "$STG" --query "[0].value" -o tsv)
+az storage share-rm create --resource-group "$RG" --storage-account "$STG" --name "$SHARE" --quota 5
+az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$LOC"
+az containerapp env storage set \
+  -g "$RG" -n "$ENV_NAME" \
+  --storage-name invoicedata \
+  --azure-file-account-name "$STG" \
+  --azure-file-account-key "$STORAGE_KEY" \
+  --azure-file-share-name "$SHARE" \
+  --access-mode ReadWrite
+```
+
+Build the multi-stage image in ACR from the repo root. On Windows, prefer `--no-logs` to avoid an Azure CLI console encoding crash while streaming build output; check status with `az acr task list-runs`:
+
+```bash
+az acr build -r "$ACR" -g "$RG" -t invoice-review:latest -f Dockerfile . --no-logs
+az acr task list-runs -r "$ACR" -o table
+```
+
+Create the Container App with secrets and a system-assigned identity for ACR pull. Load provider values from `backend/.env` into the shell first (do not commit them). PowerShell:
+
+```powershell
+Get-Content backend\.env | ForEach-Object {
+  if ($_ -match '^\s*([^#][^=]+)=(.*)$') {
+    Set-Item -Path "env:$($matches[1].Trim())" -Value $matches[2].Trim()
+  }
+}
+
+az containerapp create `
+  -g $RG -n $APP `
+  --environment $ENV_NAME `
+  --image "$ACR.azurecr.io/invoice-review:latest" `
+  --registry-server "$ACR.azurecr.io" `
+  --system-assigned `
+  --registry-identity system `
+  --target-port 8000 `
+  --ingress external `
+  --cpu 0.5 --memory 1.0Gi `
+  --min-replicas 1 --max-replicas 1 `
+  --secrets `
+    "di-endpoint=$env:AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT" `
+    "di-key=$env:AZURE_DOCUMENT_INTELLIGENCE_KEY" `
+    "aoai-endpoint=$env:AZURE_OPENAI_ENDPOINT" `
+    "aoai-key=$env:AZURE_OPENAI_API_KEY" `
+  --env-vars `
+    "STATIC_DIR=/app/static" `
+    "AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=secretref:di-endpoint" `
+    "AZURE_DOCUMENT_INTELLIGENCE_KEY=secretref:di-key" `
+    "AZURE_OPENAI_ENDPOINT=secretref:aoai-endpoint" `
+    "AZURE_OPENAI_API_KEY=secretref:aoai-key"
+```
+
+Grant ACR pull:
+
+```bash
+PRINCIPAL_ID=$(az containerapp show -g "$RG" -n "$APP" --query identity.principalId -o tsv)
+ACR_ID=$(az acr show -g "$RG" -n "$ACR" --query id -o tsv)
+az role assignment create --assignee "$PRINCIPAL_ID" --role AcrPull --scope "$ACR_ID"
+```
+
+Mount Azure Files at `/app/data` by exporting the app YAML, adding `volumeMounts` / `volumes`, and updating:
+
+```yaml
+# under properties.template.containers[0]:
+volumeMounts:
+- mountPath: /app/data
+  volumeName: invoicedata
+# under properties.template:
+volumes:
+- name: invoicedata
+  storageName: invoicedata
+  storageType: AzureFile
+```
+
+```bash
+az containerapp update -g "$RG" -n "$APP" --yaml path/to/patched.yaml
+az containerapp show -g "$RG" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv
+```
+
+Later image rolls (no infra recreate): `scripts/deploy-containerapp.ps1` or `scripts/deploy-containerapp.sh`.
+
+### Observable result
+
+- Live app: `https://ca-invoice-review.redforest-407253c0.westeurope.azurecontainerapps.io/`
+- `GET https://<fqdn>/health` returns `{"status":"ok"}`.
+- The HTTPS root loads the Invoice Review UI.
+- Uploading a sample under `samples/generated/` runs the full review pipeline against the existing Azure AI resources.
+- Reviews survive a container revision restart because `/app/data` is on Azure Files.
+
+### Cleanup (hosting only; keep Document Intelligence and OpenAI)
+
+```bash
+az containerapp delete -g rg-invoice-review -n ca-invoice-review --yes
+az containerapp env delete -g rg-invoice-review -n cae-invoice-review --yes
+az acr delete -g rg-invoice-review -n acrinvreview47c63 --yes
+az storage account delete -g rg-invoice-review -n stinvreview47c63 --yes
+```
+
+### Checkpoint
+
+- [ ] Backend ruff and frontend type-check/lint/build (empty `VITE_API_BASE_URL`) pass.
+- [ ] Image builds with `az acr build` (Succeeded in `az acr task list-runs`).
+- [ ] Container App FQDN serves `/health` and the UI.
+- [ ] One sample upload completes end-to-end on Azure.

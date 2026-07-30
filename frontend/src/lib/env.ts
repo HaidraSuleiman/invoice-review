@@ -1,6 +1,12 @@
 function readApiBaseUrl(): string {
   const value = import.meta.env.VITE_API_BASE_URL
-  if (typeof value !== "string" || value.trim() === "") {
+
+  // Same-origin deploy: empty string means relative fetch to the current host.
+  if (typeof value === "string" && value.trim() === "") {
+    return ""
+  }
+
+  if (typeof value !== "string") {
     throw new Error("VITE_API_BASE_URL is missing. Copy frontend/.env.example to frontend/.env.")
   }
 
