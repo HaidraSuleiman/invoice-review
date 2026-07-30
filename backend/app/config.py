@@ -1,5 +1,13 @@
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Fixed tutorial policy (not environment-backed).
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads"
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+ALLOWED_UPLOAD_SUFFIXES = frozenset({".pdf", ".png", ".jpg", ".jpeg"})
+CORS_ORIGINS = ("http://localhost:5173",)
 
 
 class Settings(BaseSettings):

@@ -248,3 +248,50 @@ uv run --locked --no-sync python -m app.services.extraction_pipeline_service ../
 - [ ] `uv run --locked --no-sync ruff check app` passes.
 - [ ] Pipeline commands complete without HTTP 401/403.
 - [ ] `gl_suggestion` appears for both invoice and receipt samples.
+
+## Process-only FastAPI layer
+
+### Outcome
+
+`app/main.py` exposes `GET /health` and mounts `POST /documents/process`. The upload route validates PDF/PNG/JPEG up to 4 MB, stores the file under `backend/data/uploads/` with a UUID name, runs `run_document_pipeline`, and returns `DocumentPipelineResult` JSON. HTTP lives in `app/invoices/routes.py`; orchestration lives in `app/invoices/service.py`. SQLite persistence is not introduced yet.
+
+### Why
+
+The CLI playground already proves classify → extract → validate → GL. The frontend needs the same path over HTTP. Keeping routes thin and orchestration in the service leaves a clear place to add `repository.py` later without rewriting the pipeline.
+
+### Commands
+
+```bash
+cd backend
+uv run --locked --no-sync ruff check app scripts
+uv run --locked --no-sync uvicorn app.main:app --reload --port 8000
+```
+
+In another terminal:
+
+```bash
+curl http://localhost:8000/health
+
+curl -X POST http://localhost:8000/documents/process \
+  -F "file=@../samples/generated/01-en-happy-classic.pdf"
+```
+
+Optional rejection checks:
+
+```bash
+curl -X POST http://localhost:8000/documents/process -F "file=@../docs/client-brief.md"
+```
+
+### Observable result
+
+- `GET /health` returns `{"status":"ok"}` without Azure credentials.
+- A successful upload returns classification, extraction, validation, and `gl_suggestion` (Azure calls are billed like the CLI pipeline).
+- Unsupported types return HTTP 400 with a clear detail message.
+- Interactive OpenAPI docs are at `http://localhost:8000/docs`.
+
+### Checkpoint
+
+- [ ] `uv run --locked --no-sync ruff check app scripts` passes.
+- [ ] Health endpoint responds with `{"status":"ok"}`.
+- [ ] Sample PDF upload returns pipeline JSON including `gl_suggestion`.
+- [ ] Non-PDF/PNG/JPEG upload returns HTTP 400.
